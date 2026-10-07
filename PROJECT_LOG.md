@@ -62,3 +62,12 @@
 - Files: public/icon.png, public/apple-touch-icon.png, public/renderer.js, FONOGRAFICUS/icon.png, FONOGRAFICUS/icon.ico, FONOGRAFICUS/renderer.js.
 - Result: DONE
 - Next: T-001 (User Accounts via Supabase).
+
+## 2026-10-07 15:43 -04:00 - Antigravity - User Accounts (T-001)
+- Task: Implement Supabase Authentication UI for Web and Electron.
+- Done:
+  - Added 'Profile' tab to \index.html\ in both projects with Email/Password and Google OAuth UI.
+  - Injected Supabase JS SDK via CDN and hardcoded \ENV\ with user's URL and Anon Key.
+  - Added authentication handlers to \enderer.js\ (signIn, signUp, signOut, session listener).
+- Next: T-003 (Cloud Sync for Favorites) once auth is tested by user.
+- Result: DONE

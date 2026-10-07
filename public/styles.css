@@ -2545,3 +2545,12 @@ body {
     display: none !important;
   }
 }
+
+.app-logo-img { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; }
+
+
+.auth-container { display: flex; flex-direction: column; gap: 15px; }
+.auth-inputs { display: flex; flex-direction: column; gap: 10px; }
+.text-input { background: #222; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 6px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; }
+.text-input:focus { border-color: #fca311; outline: none; }
+

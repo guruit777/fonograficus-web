@@ -2351,3 +2351,79 @@ function showPowerWarningBanner(data) {
   }
 }
 
+
+
+// === SUPABASE AUTH LOGIC ===
+(function() {
+  if (!window.ENV || !window.supabase) return;
+  const supabase = window.supabase.createClient(window.ENV.SUPABASE_URL, window.ENV.SUPABASE_ANON_KEY);
+  window.dbClient = supabase;
+
+  const authEmail = document.getElementById('authEmail');
+  const authPassword = document.getElementById('authPassword');
+  const btnEmailLogin = document.getElementById('btnEmailLogin');
+  const btnGoogleAuth = document.getElementById('btnGoogleAuth');
+  const authErrorMsg = document.getElementById('authErrorMsg');
+  const authView = document.getElementById('authView');
+  const loggedInView = document.getElementById('loggedInView');
+  const userEmailDisplay = document.getElementById('userEmailDisplay');
+  const btnLogout = document.getElementById('btnLogout');
+
+  function updateAuthUI(session) {
+    if (session && session.user) {
+      authView.style.display = 'none';
+      loggedInView.style.display = 'block';
+      userEmailDisplay.textContent = session.user.email;
+      if (window.showToast) window.showToast('Успешный вход: ' + session.user.email);
+    } else {
+      authView.style.display = 'block';
+      loggedInView.style.display = 'none';
+      userEmailDisplay.textContent = '';
+    }
+  }
+
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    updateAuthUI(session);
+  });
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    updateAuthUI(session);
+  });
+
+  btnEmailLogin?.addEventListener('click', async () => {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    if (!email || !password) {
+      authErrorMsg.textContent = 'Введите email и пароль';
+      authErrorMsg.style.display = 'block';
+      return;
+    }
+    btnEmailLogin.disabled = true;
+    authErrorMsg.style.display = 'none';
+    // Try to login
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error && error.message.includes('Invalid login credentials')) {
+      // Try to sign up
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) {
+        authErrorMsg.textContent = signUpError.message;
+        authErrorMsg.style.display = 'block';
+      } else {
+        if (window.showToast) window.showToast('Аккаунт создан! Проверьте почту для подтверждения.');
+      }
+    } else if (error) {
+      authErrorMsg.textContent = error.message;
+      authErrorMsg.style.display = 'block';
+    }
+    btnEmailLogin.disabled = false;
+  });
+
+  btnGoogleAuth?.addEventListener('click', async () => {
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  });
+
+  btnLogout?.addEventListener('click', async () => {
+    await supabase.auth.signOut();
+  });
+})();
+

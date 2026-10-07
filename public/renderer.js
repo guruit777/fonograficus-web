@@ -155,6 +155,7 @@ const tabPanes = {
   playlists: document.getElementById('tabPlaylists'),
   notes: document.getElementById('tabNotes'),
   ai: document.getElementById('tabAi'),
+  profile: document.getElementById('tabProfile'),
   settings: document.getElementById('tabSettings')
 };
 const favCountBadge = document.getElementById('favCount');

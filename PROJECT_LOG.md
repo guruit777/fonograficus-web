@@ -13,3 +13,15 @@
   - `git status` — passed (branch master).
 - Result: DONE
 - Next: T-001 (Подключение базы данных Supabase для учетных записей и синхронизации избранного).
+
+## 2026-10-07 12:15 -04:00 — Antigravity — Обновление брендинга (Диско-Винил) и исправление Apple CarPlay
+- Task: Замена старой иконки на логотип Диско-Винил, исправление отображения обложки и дока в Apple CarPlay, устранение HTML-сущностей в названиях треков.
+- Done:
+  - Сгенерирован и внедрён новый логотип Диско-Винил (`public/icon.png`, `public/apple-touch-icon.png`).
+  - Исправлен `manifest.json` и `public/index.html` (apple-touch-icon 180x180, title, meta-теги).
+  - Устранена проблема `&nbsp;` и `&ndash;` в `src/app/api/search/route.js` и `public/renderer.js` через функцию `cleanHtmlEntities` / `decodeHtmlEntities`.
+  - Обновлён `MediaSession API`: теперь в CarPlay передаётся реальная обложка трека (`track.avatar`), а при её отсутствии — высококачественный логотип Диско-Винила.
+- Files: public/icon.png, public/apple-touch-icon.png, public/index.html, public/manifest.json, public/renderer.js, src/app/api/search/route.js.
+- Checks: `npm run build` — passed.
+- Result: DONE
+

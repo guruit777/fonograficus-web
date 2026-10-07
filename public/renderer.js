@@ -1068,6 +1068,24 @@ function renderFavoritesList() {
   }
 }
 
+function cleanHtmlEntities(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&mdash;/gi, '—')
+    .replace(/&laquo;/gi, '«')
+    .replace(/&raquo;/gi, '»')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .trim();
+}
+
 // Playback handling
 function playTrack(index) {
   if (index < 0 || index >= currentPlaylist.length) return;
@@ -1079,14 +1097,17 @@ function playTrack(index) {
   // Add to playback history for AI training
   logTrackHistory(track);
 
-  // Update UI Titles
-  currentTitle.textContent = track.title;
-  currentTitle.title = track.title;
-  currentArtist.textContent = track.author ? `${track.author} • ${track.source === 'radio' ? 'Radio' : 'PromoDJ'}` : 'FONOGRAFICUS';
+  const cleanTitle = cleanHtmlEntities(track.title) || 'FONOGRAFICUS';
+  const cleanAuthor = cleanHtmlEntities(track.author) || 'Live Music Stream';
 
-  miniTitle.textContent = track.title;
-  miniTitle.title = track.title;
-  miniArtist.textContent = track.author || 'FONOGRAFICUS';
+  // Update UI Titles
+  currentTitle.textContent = cleanTitle;
+  currentTitle.title = cleanTitle;
+  currentArtist.textContent = cleanAuthor ? `${cleanAuthor} • ${track.source === 'radio' ? 'Radio' : (track.source || 'PromoDJ').toUpperCase()}` : 'FONOGRAFICUS';
+
+  miniTitle.textContent = cleanTitle;
+  miniTitle.title = cleanTitle;
+  miniArtist.textContent = cleanAuthor;
 
   updateFavIconStatus();
 
@@ -1102,13 +1123,21 @@ function playTrack(index) {
   // Sync with mobile lock-screen & control center (MediaSession API)
   if ('mediaSession' in navigator) {
     try {
+      const origin = window.location.origin || '';
+      const defaultIconUrl = origin ? `${origin}/icon.png` : '/icon.png';
+      const artworkList = [];
+      if (track.avatar && track.avatar.startsWith('http')) {
+        artworkList.push({ src: track.avatar, sizes: '512x512', type: 'image/png' });
+        artworkList.push({ src: track.avatar, sizes: '256x256', type: 'image/png' });
+      }
+      artworkList.push({ src: defaultIconUrl, sizes: '512x512', type: 'image/png' });
+      artworkList.push({ src: defaultIconUrl, sizes: '192x192', type: 'image/png' });
+
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title || 'FONOGRAFICUS',
-        artist: track.author || 'Live Music Stream',
+        title: cleanTitle,
+        artist: cleanAuthor,
         album: (track.source || 'FONOGRAFICUS').toUpperCase(),
-        artwork: [
-          { src: '/icon.png', sizes: '512x512', type: 'image/png' }
-        ]
+        artwork: artworkList
       });
       navigator.mediaSession.setActionHandler('play', () => audio.play());
       navigator.mediaSession.setActionHandler('pause', () => audio.pause());
@@ -1233,21 +1262,28 @@ async function fetchLiveRadioMetadata(streamUrl, originalTrack) {
     // Check if we are still playing this track
     if (!currentPlayingTrack || currentPlayingTrack.streamUrl !== streamUrl) return;
 
-    const newTitle = meta.rawTitle;
+    const newTitle = cleanHtmlEntities(meta.rawTitle);
     const isNewSong = (currentLiveTrackTitle && currentLiveTrackTitle !== newTitle);
     currentLiveTrackTitle = newTitle;
+
+    const stationLabel = cleanHtmlEntities(meta.stationName || originalTrack.title || 'Live Radio');
 
     // Update Player UI Titles
     currentTitle.textContent = newTitle;
     currentTitle.title = newTitle;
 
-    const stationLabel = meta.stationName || originalTrack.title || 'Live Radio';
     currentArtist.textContent = `${stationLabel} • В эфире`;
     currentArtist.title = stationLabel;
 
     miniTitle.textContent = newTitle;
     miniTitle.title = newTitle;
     miniArtist.textContent = stationLabel;
+
+    // Sync with mobile lock-screen & CarPlay
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+      navigator.mediaSession.metadata.title = newTitle;
+      navigator.mediaSession.metadata.artist = `${stationLabel} • В эфире`;
+    }
 
     // Show action buttons
     if (liveBadge) liveBadge.style.display = 'inline-flex';

@@ -1,5 +1,5 @@
 # Project State
-Last verified: 2026-10-07 09:29 -04:00 · Branch: master · Commit: e32acb8 · Working tree: clean
+Last verified: 2026-10-07 12:15 -04:00 · Branch: master · Commit: pending · Working tree: modified
 
 ## Cold start
 - **Проект:** `fonograficus-web` — мобильное PWA веб-приложение музыкального плеера FONOGRAFICUS.
@@ -7,9 +7,9 @@ Last verified: 2026-10-07 09:29 -04:00 · Branch: master · Commit: e32acb8 · W
 - **Стек:** Next.js 16 (App Router), Vanilla JS + CSS (Ocean Sand glassmorphism), Vercel Serverless API, MediaSession API, Tailwind.
 - **Хостинг:** GitHub (`guruit777/fonograficus-web`), Vercel Production (`fonograficus-web.vercel.app`).
 - **Запуск:** `npm run dev` (локально `http://localhost:3000`), сборка `npm run build`, деплой `npx vercel --prod --yes`.
-- **Текущий фокус:** Плеер полностью портирован и развёрнут в production. Следующий шаг — внедрение базы данных (Supabase) и регистрация пользователей для персонального избранного.
-- **Остановка:** Внедрён AI Project Standard v1.0. Нижняя панель плеера закреплена (sticky), дизайн синхронизирован с десктопом.
-- **Следующее действие:** T-001 (Выбор и подключение Supabase для хранения пользователей и лайков).
+- **Текущий фокус:** Обновлён брендинг (Диско-Винил), исправлены заглушки и отображение в Apple CarPlay.
+- **Остановка:** Внедрён логотип Диско-Винил в PWA (`icon.png`, `apple-touch-icon.png`), исправлен MediaSession artwork, декодированы HTML-сущности в PromoDJ. В десктопное приложение добавлен прогресс-бар.
+- **Следующее действие:** T-001 (Выбор и подключение Supabase для хранения пользователей и лайков) / Фаза 2 Мастер-Плана.
 - **Ключевые файлы:** `public/index.html`, `public/styles.css`, `public/renderer.js`, `src/app/api/search/route.js`.
 
 ## Status

@@ -1321,6 +1321,31 @@ body {
   gap: 8px;
 }
 
+.time-display-pill {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  background: var(--pill-bg);
+  border-radius: 6px;
+  font-family: 'SF Mono', -apple-system, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  user-select: none;
+}
+
+.time-display-pill .time-divider {
+  opacity: 0.4;
+  margin: 0 1px;
+}
+
+.time-display-pill.is-live #playerCurrentTime {
+  color: #ef4444;
+  font-weight: 700;
+}
+
 .hotkey-pill {
   display: flex;
   align-items: center;

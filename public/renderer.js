@@ -456,6 +456,9 @@ function setupEventListeners() {
   // Dynamic Progress bar & stream tracking
   const playerProgressBar = document.getElementById('playerProgressBar');
   const playerProgressTrack = document.getElementById('playerProgressTrack');
+  const playerTimeDisplay = document.getElementById('playerTimeDisplay');
+  const playerCurrentTime = document.getElementById('playerCurrentTime');
+  const playerTotalTime = document.getElementById('playerTotalTime');
 
   audio.addEventListener('timeupdate', () => {
     if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
@@ -464,10 +467,23 @@ function setupEventListeners() {
         const pct = (audio.currentTime / audio.duration) * 100;
         playerProgressBar.style.width = pct + '%';
       }
+      if (playerTimeDisplay) playerTimeDisplay.classList.remove('is-live');
+      if (playerCurrentTime) playerCurrentTime.textContent = formatTime(audio.currentTime);
+      if (playerTotalTime) {
+        playerTotalTime.style.display = 'inline';
+        playerTotalTime.textContent = formatTime(audio.duration);
+      }
+      const divider = playerTimeDisplay?.querySelector('.time-divider');
+      if (divider) divider.style.display = 'inline';
     } else if (isPlaying) {
       if (playerProgressBar && !playerProgressBar.classList.contains('is-live')) {
         playerProgressBar.classList.add('is-live');
       }
+      if (playerTimeDisplay) playerTimeDisplay.classList.add('is-live');
+      if (playerCurrentTime) playerCurrentTime.textContent = '🔴 ЭФИР';
+      if (playerTotalTime) playerTotalTime.style.display = 'none';
+      const divider = playerTimeDisplay?.querySelector('.time-divider');
+      if (divider) divider.style.display = 'none';
     }
   });
 

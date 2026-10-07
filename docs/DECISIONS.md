@@ -31,3 +31,17 @@
 - Consequences: Элементы управления (Play, Pause, Prev, Next, Like, Shuffle) всегда доступны перед глазами.
 - Revisit if: Изменение формата плеера на полноэкранный модальный режим.
 - Evidence: `public/styles.css`, коммит `e32acb8`.
+
+## D-005 — Фирменный брендинг «Диско-Винил» и иконки Apple CarPlay — ACCEPTED (2026-10-07)
+- Context: Прежняя заглушка приложения (черно-белый кружок с точками) выглядела неэстетично на домашнем экране iOS и мониторе Apple CarPlay.
+- Decision: Внедрение утвержденного логотипа «Диско-Винил» (зеркальные грани, золотой шпиндель, неоновые лазерные лучи) в `public/icon.png` и `public/apple-touch-icon.png` (180x180).
+- Alternatives and why not: Минималистичный плоский логотип без клубной эстетики.
+- Consequences: Премиальный вид в доке CarPlay и на экране блокировки iOS.
+- Evidence: `public/icon.png`, `public/apple-touch-icon.png`, коммит `351676c`.
+
+## D-006 — Динамический Artwork в MediaSession и декодирование HTML-сущностей — ACCEPTED (2026-10-07)
+- Context: В Apple CarPlay отображалась жестко зашитая заглушка вместо обложки трека, а в названиях миксов PromoDJ отображались служебные теги `&nbsp;` и `&ndash;`.
+- Decision: Передача реального `track.avatar` в MediaSession с запасным фолбэком на Диско-Винил; сквозная фильтрация HTML-сущностей через `cleanHtmlEntities` / `decodeHtmlEntities`.
+- Consequences: Чистый текст названий и живые обложки треков в Apple CarPlay и Control Center.
+- Evidence: `src/app/api/search/route.js`, `public/renderer.js`, коммит `351676c`.
+

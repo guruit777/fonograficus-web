@@ -453,6 +453,34 @@ function setupEventListeners() {
     setTimeout(() => playNext(), 1500);
   });
 
+  // Dynamic Progress bar & stream tracking
+  const playerProgressBar = document.getElementById('playerProgressBar');
+  const playerProgressTrack = document.getElementById('playerProgressTrack');
+
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+      if (playerProgressBar) {
+        playerProgressBar.classList.remove('is-live');
+        const pct = (audio.currentTime / audio.duration) * 100;
+        playerProgressBar.style.width = pct + '%';
+      }
+    } else if (isPlaying) {
+      if (playerProgressBar && !playerProgressBar.classList.contains('is-live')) {
+        playerProgressBar.classList.add('is-live');
+      }
+    }
+  });
+
+  if (playerProgressTrack) {
+    playerProgressTrack.addEventListener('click', (e) => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        const rect = playerProgressTrack.getBoundingClientRect();
+        const clickRatio = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = clickRatio * audio.duration;
+      }
+    });
+  }
+
   // Search input events
   let searchDebounce = null;
   searchInput.addEventListener('input', () => {
@@ -1071,6 +1099,26 @@ function playTrack(index) {
   audio.src = track.streamUrl;
   audio.play().catch(e => console.warn(e));
 
+  // Sync with mobile lock-screen & control center (MediaSession API)
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title || 'FONOGRAFICUS',
+        artist: track.author || 'Live Music Stream',
+        album: (track.source || 'FONOGRAFICUS').toUpperCase(),
+        artwork: [
+          { src: '/icon.png', sizes: '512x512', type: 'image/png' }
+        ]
+      });
+      navigator.mediaSession.setActionHandler('play', () => audio.play());
+      navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+    } catch(err) {
+      console.warn('MediaSession error', err);
+    }
+  }
+
   // Live Radio metadata detection (ICY StreamTitle)
   const isLiveRadio = track.source === 'stations' || track.source === 'radio' || track.source === 'zaycev' || (track.duration && track.duration.toLowerCase().includes('live'));
   if (isLiveRadio) {
@@ -1243,6 +1291,16 @@ function updatePlayPauseUI() {
     miniPlayIcon.style.display = 'block';
     miniPauseIcon.style.display = 'none';
     soundWave.classList.remove('playing');
+  }
+
+  const currentCover = document.getElementById('currentCover');
+  if (currentCover) {
+    currentCover.classList.toggle('is-playing', isPlaying);
+  }
+
+  const playerProgressBar = document.getElementById('playerProgressBar');
+  if (playerProgressBar && !isPlaying) {
+    playerProgressBar.classList.remove('is-live');
   }
 }
 

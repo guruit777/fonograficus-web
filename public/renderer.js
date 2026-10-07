@@ -1162,20 +1162,9 @@ function renderFavoritesList() {
 
 function cleanHtmlEntities(str) {
   if (!str) return '';
-  return String(str)
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&ndash;/gi, '–')
-    .replace(/&mdash;/gi, '—')
-    .replace(/&laquo;/gi, '«')
-    .replace(/&raquo;/gi, '»')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .trim();
+  const txt = document.createElement("textarea");
+  txt.innerHTML = str;
+  return txt.value.trim();
 }
 
 function updateMediaSession(track, cleanTitle, cleanAuthor) {

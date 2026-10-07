@@ -1,5 +1,5 @@
 # Project State
-Last verified: 2026-10-07 12:50 -04:00 · Branch: master · Commit: 9ceac6d · Working tree: clean
+Last verified: 2026-10-07 13:30 -04:00 · Branch: master · Commit: pending · Working tree: clean
 
 ## Cold start
 - **Проект:** `fonograficus-web` — мобильное PWA веб-приложение музыкального плеера FONOGRAFICUS.
@@ -7,14 +7,15 @@ Last verified: 2026-10-07 12:50 -04:00 · Branch: master · Commit: 9ceac6d · W
 - **Стек:** Next.js 16 (App Router), Vanilla JS + CSS (Ocean Sand glassmorphism), Vercel Serverless API, MediaSession API, Tailwind.
 - **Хостинг:** GitHub (`guruit777/fonograficus-web`), Vercel Production (`fonograficus-web.vercel.app`).
 - **Запуск:** `npm run dev` (локально `http://localhost:3000`), сборка `npm run build`, деплой `npx vercel --prod --yes`.
-- **Текущий фокус:** Обновлён брендинг (Диско-Винил), исправлены заглушки и отображение в Apple CarPlay.
-- **Остановка:** Внедрён логотип Диско-Винил в PWA (`icon.png`, `apple-touch-icon.png`), исправлен MediaSession artwork, декодированы HTML-сущности в PromoDJ. В десктопное приложение добавлен прогресс-бар.
+- **Текущий фокус:** Двухдековый Crossfade (плавное сведение треков 0..8s), брендинг Диско-Винил и Apple CarPlay.
+- **Остановка:** Реализован Dual-Deck Crossfade Engine в Windows и Web/PWA (двойные деки audioPlayerA/B, автосведение в конце трека, переключение чипами 0s..8s).
 - **Следующее действие:** T-001 (Выбор и подключение Supabase для хранения пользователей и лайков) / Фаза 2 Мастер-Плана.
 - **Ключевые файлы:** `public/index.html`, `public/styles.css`, `public/renderer.js`, `src/app/api/search/route.js`.
 
 ## Status
 - **Поиск по 6 сервисам:** WORKING [VERIFIED] — PromoDJ, Топ Радио, Зайцев.FM, Radio-Browser, BananaStreet, Radio Garden через `/api/search`.
-- **Нижняя панель плеера:** WORKING [VERIFIED] — плавающая плашка с элементами управления, живой волной и отступами для iPhone.
+- **Плавное сведение (Crossfade):** WORKING [VERIFIED] — плавный переход между треками 0..8 сек на двух независимых аудиоплеерах без заиканий.
+- **Нижняя панель плеера:** WORKING [VERIFIED] — плавающая плашка с элементами управления, таймкодами и отступами для iPhone.
 - **Фоновое воспроизведение на iOS:** WORKING [VERIFIED] — интеграция с экраном блокировки и Control Center через MediaSession.
 - **Локальное избранное (лайки ❤️):** WORKING [VERIFIED] — сохранение в localStorage браузера.
 - **Многопользовательский режим и облачное избранное:** PLANNED [INFERRED] — ожидает интеграции Supabase Auth и БД.

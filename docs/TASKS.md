@@ -8,4 +8,5 @@
 | T-004 | Создать вкладку «Моя музыка» с сохраненными плейлистами пользователя | TODO | Eugene | master | Просмотр избранного и персональных сетов |
 | T-005 | Обновление брендинга (Диско-Винил) и исправление заглушек Apple CarPlay | DONE | Antigravity | master | Внедрен логотип, apple-touch-icon, декодер HTML |
 | T-006 | Динамические таймкоды треков (elapsed/total) и индикатор эфира | DONE | Antigravity | master | Внедрена плашка .time-display-pill |
+| T-007 | Dual-Deck Crossfade Engine (плавное сведение треков 0..8 сек) | DONE | Antigravity | master | Двухдековая интерполяция громкости и автокроссфейд |
 

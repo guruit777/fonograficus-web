@@ -35,3 +35,19 @@
 - Checks: `npm run build` (Next.js) — passed; `node -c` (Electron) — passed.
 - Result: DONE
 
+## 2026-10-07 13:30 -04:00 — Antigravity — Dual-Deck Crossfade Engine (плавное сведение треков 0..8с)
+- Task: Разработка и запуск механизма плавного сведения треков (Crossfade) на двух деках без щелчков и задержек, деплой в продакшн Vercel.
+- Done:
+  - Реализована двухдековая архитектура воспроизведения (`audioPlayer` + `audioPlayerB`).
+  - Добавлена интерполяция громкости по равномощной кривой (Equal-power curve) для сохранения постоянной громкости в точке сведения.
+  - Настроен автокроссфейд в конце трека (`remaining <= appData.crossfade`) для обычных треков (PromoDJ, BananaStreet).
+  - Исключены онлайн-радиостанции и прямые эфиры из кроссфейда во избежание разрывов ICY-потоков.
+  - Добавлен селектор длительности кроссфейда в карточку настроек (Выкл, 2с, 3с, 5с, 8с) с активным бейджем.
+  - Интегрирован MediaSession API для корректного управления на экране блокировки iOS, Android и Apple CarPlay.
+  - Архитектура полностью синхронизирована между Windows Electron (`FONOGRAFICUS`) и Web/PWA (`fonograficus-web`).
+- Files: FONOGRAFICUS (renderer.js), fonograficus-web (public/index.html, public/styles.css, public/renderer.js, docs/TASKS.md, PROJECT_STATE.md, PROJECT_LOG.md).
+- Checks: `npm run build` (Next.js) — passed (clean); `node -c` (both renderers) — passed.
+- Result: DONE
+- Next: T-001 (Подключение базы данных Supabase для учетных записей и синхронизации избранного).
+
+

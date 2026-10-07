@@ -23,8 +23,9 @@
   <!-- Custom Wallpaper Backdrop Layer -->
   <div id="wallpaperBackdrop" class="wallpaper-layer"></div>
 
-  <!-- Audio Element -->
+  <!-- Audio Elements (Dual Decks for Crossfade) -->
   <audio id="audioPlayer" preload="auto"></audio>
+  <audio id="audioPlayerB" preload="auto"></audio>
 
   <!-- ================= NORMAL WINDOW MODE ================= -->
   <div id="normalContainer" class="glass-card normal-view">
@@ -539,6 +540,27 @@
               <button type="button" id="btnSaveHotkeys" class="action-btn primary-save-btn">Применить комбинации клавиш</button>
               <span class="hotkey-save-hint">Комбинация <b>Ctrl+End</b> (Control End) проверена и активируется глобально</span>
             </div>
+          </div>
+        </div>
+
+        <!-- 4.1 Crossfade (Плавное сведение треков) -->
+        <div class="settings-card crossfade-card">
+          <div class="card-header-flex">
+            <div>
+              <div class="power-card-title-row">
+                <h4>🎚 Плавное сведение треков (Crossfade)</h4>
+                <span id="crossfadeStatusBadge" class="timer-status-badge active">3 сек</span>
+              </div>
+              <p class="setting-desc">Бесшовный переход между треками без тишины и пауз (как в диджейском сете)</p>
+            </div>
+          </div>
+          <div class="crossfade-presets-row">
+            <span class="presets-label">Время сведения:</span>
+            <button type="button" class="crossfade-chip" data-secs="0">Выкл (0с)</button>
+            <button type="button" class="crossfade-chip" data-secs="2">2 сек</button>
+            <button type="button" class="crossfade-chip active" data-secs="3">3 сек</button>
+            <button type="button" class="crossfade-chip" data-secs="5">5 сек</button>
+            <button type="button" class="crossfade-chip" data-secs="8">8 сек</button>
           </div>
         </div>
 

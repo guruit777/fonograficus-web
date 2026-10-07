@@ -122,7 +122,8 @@ let appData = {
   activeSource: 'promodj',
   geminiApiKey: '',
   favorites: [],
-  history: []
+  history: [],
+  crossfade: 3
 };
 
 let currentPlaylist = [];
@@ -131,8 +132,15 @@ let currentPlayingTrack = null;
 let isPlaying = false;
 let currentTab = 'search';
 
-// DOM Elements
-const audio = document.getElementById('audioPlayer');
+// DOM Elements (Dual Audio Decks for Seamless Crossfade)
+const audioPlayerA = document.getElementById('audioPlayer');
+const audioPlayerB = document.getElementById('audioPlayerB');
+let audio = audioPlayerA;
+let activeAudio = audioPlayerA;
+let inactiveAudio = audioPlayerB;
+let isCrossfading = false;
+let crossfadeFadeInterval = null;
+let masterVolume = 0.85;
 const normalContainer = document.getElementById('normalContainer');
 const miniContainer = document.getElementById('miniContainer');
 const wallpaperBackdrop = document.getElementById('wallpaperBackdrop');
@@ -388,7 +396,7 @@ function setupEventListeners() {
   // Playback Buttons
   btnMainPlay.addEventListener('click', togglePlayPause);
   btnMiniPlay.addEventListener('click', togglePlayPause);
-  btnNext.addEventListener('click', playNext);
+  btnNext.addEventListener('click', () => playNext(true));
   btnPrev.addEventListener('click', playPrev);
   if (btnShuffle) btnShuffle.addEventListener('click', toggleShuffle);
   if (btnMiniShuffle) btnMiniShuffle.addEventListener('click', toggleShuffle);
@@ -432,26 +440,16 @@ function setupEventListeners() {
     });
   }
 
-  // Volume
+  // Volume & Master Audio Setup
   volumeSlider.addEventListener('input', (e) => {
-    audio.volume = parseFloat(e.target.value);
+    masterVolume = parseFloat(e.target.value);
+    if (!isCrossfading) {
+      activeAudio.volume = masterVolume;
+    }
   });
-  audio.volume = parseFloat(volumeSlider.value);
-
-  // Audio element events
-  audio.addEventListener('play', () => {
-    isPlaying = true;
-    updatePlayPauseUI();
-  });
-  audio.addEventListener('pause', () => {
-    isPlaying = false;
-    updatePlayPauseUI();
-  });
-  audio.addEventListener('ended', () => playNext());
-  audio.addEventListener('error', () => {
-    showToast('Ошибка потока, пробую следующий...');
-    setTimeout(() => playNext(), 1500);
-  });
+  masterVolume = parseFloat(volumeSlider.value);
+  activeAudio.volume = masterVolume;
+  inactiveAudio.volume = 0;
 
   // Dynamic Progress bar & stream tracking
   const playerProgressBar = document.getElementById('playerProgressBar');
@@ -460,39 +458,99 @@ function setupEventListeners() {
   const playerCurrentTime = document.getElementById('playerCurrentTime');
   const playerTotalTime = document.getElementById('playerTotalTime');
 
-  audio.addEventListener('timeupdate', () => {
-    if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
-      if (playerProgressBar) {
-        playerProgressBar.classList.remove('is-live');
-        const pct = (audio.currentTime / audio.duration) * 100;
-        playerProgressBar.style.width = pct + '%';
+  function setupDeckEvents(deck) {
+    deck.addEventListener('timeupdate', () => {
+      if (deck !== activeAudio) return;
+
+      const hasDuration = deck.duration && !isNaN(deck.duration) && isFinite(deck.duration);
+      if (hasDuration) {
+        if (playerProgressBar) {
+          playerProgressBar.classList.remove('is-live');
+          const pct = (deck.currentTime / deck.duration) * 100;
+          playerProgressBar.style.width = pct + '%';
+        }
+        if (playerTimeDisplay) playerTimeDisplay.classList.remove('is-live');
+        if (playerCurrentTime) playerCurrentTime.textContent = formatTime(deck.currentTime);
+        if (playerTotalTime) {
+          playerTotalTime.style.display = 'inline';
+          playerTotalTime.textContent = formatTime(deck.duration);
+        }
+        const divider = playerTimeDisplay?.querySelector('.time-divider');
+        if (divider) divider.style.display = 'inline';
+
+        // Auto-crossfade detection near the end of regular tracks
+        const cfSecs = (appData.crossfade !== undefined) ? appData.crossfade : 3;
+        const isLive = currentPlayingTrack && (
+          currentPlayingTrack.source === 'stations' ||
+          currentPlayingTrack.source === 'radio' ||
+          currentPlayingTrack.source === 'zaycev' ||
+          (currentPlayingTrack.duration && currentPlayingTrack.duration.toLowerCase().includes('live'))
+        );
+
+        if (!isCrossfading && cfSecs > 0 && !isLive && deck.duration > (cfSecs * 2)) {
+          const remaining = deck.duration - deck.currentTime;
+          if (remaining <= cfSecs && remaining > 0.4) {
+            console.log(`[Crossfade] Web auto transition initiated (${cfSecs}s fade, ${remaining.toFixed(1)}s left)`);
+            playNext(true);
+          }
+        }
+      } else if (isPlaying) {
+        if (playerProgressBar && !playerProgressBar.classList.contains('is-live')) {
+          playerProgressBar.classList.add('is-live');
+        }
+        if (playerTimeDisplay) playerTimeDisplay.classList.add('is-live');
+        if (playerCurrentTime) playerCurrentTime.textContent = '🔴 ЭФИР';
+        if (playerTotalTime) playerTotalTime.style.display = 'none';
+        const divider = playerTimeDisplay?.querySelector('.time-divider');
+        if (divider) divider.style.display = 'none';
       }
-      if (playerTimeDisplay) playerTimeDisplay.classList.remove('is-live');
-      if (playerCurrentTime) playerCurrentTime.textContent = formatTime(audio.currentTime);
-      if (playerTotalTime) {
-        playerTotalTime.style.display = 'inline';
-        playerTotalTime.textContent = formatTime(audio.duration);
+    });
+
+    deck.addEventListener('play', () => {
+      if (deck === activeAudio) {
+        isPlaying = true;
+        updatePlayPauseUI();
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'playing';
+        }
       }
-      const divider = playerTimeDisplay?.querySelector('.time-divider');
-      if (divider) divider.style.display = 'inline';
-    } else if (isPlaying) {
-      if (playerProgressBar && !playerProgressBar.classList.contains('is-live')) {
-        playerProgressBar.classList.add('is-live');
+    });
+
+    deck.addEventListener('pause', () => {
+      if (deck === activeAudio && !isCrossfading) {
+        isPlaying = false;
+        updatePlayPauseUI();
+        if (playerProgressBar) playerProgressBar.classList.remove('is-live');
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'paused';
+        }
       }
-      if (playerTimeDisplay) playerTimeDisplay.classList.add('is-live');
-      if (playerCurrentTime) playerCurrentTime.textContent = '🔴 ЭФИР';
-      if (playerTotalTime) playerTotalTime.style.display = 'none';
-      const divider = playerTimeDisplay?.querySelector('.time-divider');
-      if (divider) divider.style.display = 'none';
-    }
-  });
+    });
+
+    deck.addEventListener('ended', () => {
+      if (deck === activeAudio && !isCrossfading) {
+        playNext(false);
+      }
+    });
+
+    deck.addEventListener('error', (e) => {
+      if (deck === activeAudio && !isCrossfading) {
+        console.warn('[Audio Deck Web] Stream error:', e);
+        showToast('Ошибка потока, пробую следующий...');
+        setTimeout(() => playNext(false), 1500);
+      }
+    });
+  }
+
+  setupDeckEvents(audioPlayerA);
+  setupDeckEvents(audioPlayerB);
 
   if (playerProgressTrack) {
     playerProgressTrack.addEventListener('click', (e) => {
-      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+      if (activeAudio.duration && !isNaN(activeAudio.duration) && isFinite(activeAudio.duration)) {
         const rect = playerProgressTrack.getBoundingClientRect();
-        const clickRatio = (e.clientX - rect.left) / rect.width;
-        audio.currentTime = clickRatio * audio.duration;
+        const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        activeAudio.currentTime = clickRatio * activeAudio.duration;
       }
     });
   }
@@ -672,6 +730,24 @@ function setupEventListeners() {
     opacityVal.textContent = `${appData.wallpaperOpacity}%`;
     applyWallpaperSettings();
     saveAppData();
+  });
+
+  // Settings: Crossfade Presets (0s, 2s, 3s, 5s, 8s)
+  const crossfadeChips = document.querySelectorAll('.crossfade-chip');
+  const crossfadeStatusBadge = document.getElementById('crossfadeStatusBadge');
+  crossfadeChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      crossfadeChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const secs = parseInt(chip.dataset.secs, 10);
+      appData.crossfade = secs;
+      if (crossfadeStatusBadge) {
+        crossfadeStatusBadge.textContent = secs === 0 ? 'Выкл' : `${secs} сек`;
+        crossfadeStatusBadge.classList.toggle('active', secs > 0);
+      }
+      saveAppData();
+      showToast(secs === 0 ? 'Плавное сведение (Crossfade) выключено' : `Плавное сведение: ${secs} сек`);
+    });
   });
 
   // Hotkey Recorder
@@ -1042,11 +1118,11 @@ function renderTracklist(list, container) {
       </div>
     `;
 
-    // Item click -> play
+    // Item click -> play (uses crossfade if already playing)
     item.addEventListener('click', (e) => {
       if (e.target.closest('.action-icon-btn')) return;
       currentPlaylist = list;
-      playTrack(index);
+      playTrack(index, isPlaying);
     });
 
     // Favorite toggle
@@ -1102,8 +1178,44 @@ function cleanHtmlEntities(str) {
     .trim();
 }
 
-// Playback handling
-function playTrack(index) {
+function updateMediaSession(track, cleanTitle, cleanAuthor) {
+  if ('mediaSession' in navigator) {
+    try {
+      const origin = window.location.origin || '';
+      const defaultIconUrl = origin ? `${origin}/icon.png` : '/icon.png';
+      const artworkList = [];
+      if (track.avatar && track.avatar.startsWith('http')) {
+        artworkList.push({ src: track.avatar, sizes: '512x512', type: 'image/png' });
+        artworkList.push({ src: track.avatar, sizes: '256x256', type: 'image/png' });
+      }
+      artworkList.push({ src: defaultIconUrl, sizes: '512x512', type: 'image/png' });
+      artworkList.push({ src: defaultIconUrl, sizes: '192x192', type: 'image/png' });
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: cleanTitle,
+        artist: cleanAuthor,
+        album: (track.source || 'FONOGRAFICUS').toUpperCase(),
+        artwork: artworkList
+      });
+      navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNext(true));
+      if ('seekto' in navigator.mediaSession) {
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime !== undefined && activeAudio.duration) {
+            activeAudio.currentTime = details.seekTime;
+          }
+        });
+      }
+    } catch(err) {
+      console.warn('MediaSession error', err);
+    }
+  }
+}
+
+// Playback handling with Dual-Deck Crossfade Engine
+function playTrack(index, withCrossfade = false) {
   if (index < 0 || index >= currentPlaylist.length) return;
 
   currentTrackIndex = index;
@@ -1132,37 +1244,8 @@ function playTrack(index) {
     el.classList.toggle('active', el.querySelector('.item-title')?.textContent === track.title);
   });
 
-  // Stream audio
-  audio.src = track.streamUrl;
-  audio.play().catch(e => console.warn(e));
-
-  // Sync with mobile lock-screen & control center (MediaSession API)
-  if ('mediaSession' in navigator) {
-    try {
-      const origin = window.location.origin || '';
-      const defaultIconUrl = origin ? `${origin}/icon.png` : '/icon.png';
-      const artworkList = [];
-      if (track.avatar && track.avatar.startsWith('http')) {
-        artworkList.push({ src: track.avatar, sizes: '512x512', type: 'image/png' });
-        artworkList.push({ src: track.avatar, sizes: '256x256', type: 'image/png' });
-      }
-      artworkList.push({ src: defaultIconUrl, sizes: '512x512', type: 'image/png' });
-      artworkList.push({ src: defaultIconUrl, sizes: '192x192', type: 'image/png' });
-
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: cleanTitle,
-        artist: cleanAuthor,
-        album: (track.source || 'FONOGRAFICUS').toUpperCase(),
-        artwork: artworkList
-      });
-      navigator.mediaSession.setActionHandler('play', () => audio.play());
-      navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
-      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-    } catch(err) {
-      console.warn('MediaSession error', err);
-    }
-  }
+  // Sync with mobile lock-screen & CarPlay (MediaSession API)
+  updateMediaSession(track, cleanTitle, cleanAuthor);
 
   // Live Radio metadata detection (ICY StreamTitle)
   const isLiveRadio = track.source === 'stations' || track.source === 'radio' || track.source === 'zaycev' || (track.duration && track.duration.toLowerCase().includes('live'));
@@ -1171,23 +1254,131 @@ function playTrack(index) {
   } else {
     stopLiveRadioWatcher();
   }
+
+  // Crossfade Transition Check
+  const cfSecs = (appData.crossfade !== undefined) ? appData.crossfade : 3;
+  const canCrossfade = withCrossfade && cfSecs > 0 && !isLiveRadio && isPlaying && activeAudio.currentTime > 0;
+
+  if (canCrossfade) {
+    executeCrossfadeTransition(track, cfSecs);
+  } else {
+    executeDirectPlay(track);
+  }
+}
+
+function executeDirectPlay(track) {
+  if (crossfadeFadeInterval) {
+    clearInterval(crossfadeFadeInterval);
+    crossfadeFadeInterval = null;
+  }
+  isCrossfading = false;
+
+  try {
+    inactiveAudio.pause();
+    inactiveAudio.src = '';
+    inactiveAudio.volume = 0;
+  } catch (e) {}
+
+  activeAudio.volume = masterVolume;
+  activeAudio.src = track.streamUrl;
+  activeAudio.play().catch(e => console.warn(e));
+  audio = activeAudio;
+}
+
+function executeCrossfadeTransition(track, cfSecs) {
+  if (crossfadeFadeInterval) {
+    clearInterval(crossfadeFadeInterval);
+    crossfadeFadeInterval = null;
+  }
+
+  isCrossfading = true;
+  const outgoing = activeAudio;
+  const incoming = inactiveAudio;
+
+  // Prepare incoming deck
+  incoming.src = track.streamUrl;
+  incoming.volume = 0;
+  incoming.currentTime = 0;
+
+  const playPromise = incoming.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(e => {
+      console.warn('[Crossfade Web] Failed to play incoming deck, falling back:', e);
+      if (crossfadeFadeInterval) {
+        clearInterval(crossfadeFadeInterval);
+        crossfadeFadeInterval = null;
+      }
+      isCrossfading = false;
+      outgoing.volume = masterVolume;
+      activeAudio = outgoing;
+      inactiveAudio = incoming;
+      audio = activeAudio;
+    });
+  }
+
+  // Swap active deck pointer so UI and visualizer bind to incoming deck immediately
+  activeAudio = incoming;
+  inactiveAudio = outgoing;
+  audio = activeAudio;
+
+  const durationMs = cfSecs * 1000;
+  const intervalMs = 40;
+  const totalSteps = Math.max(1, Math.round(durationMs / intervalMs));
+  let step = 0;
+
+  crossfadeFadeInterval = setInterval(() => {
+    step++;
+    const progress = Math.min(1, step / totalSteps);
+
+    // Smooth equal-power crossfade curve
+    const inVol = masterVolume * Math.sin(progress * (Math.PI / 2));
+    const outVol = masterVolume * Math.cos(progress * (Math.PI / 2));
+
+    incoming.volume = Math.min(1, Math.max(0, inVol));
+    outgoing.volume = Math.min(1, Math.max(0, outVol));
+
+    if (step >= totalSteps) {
+      clearInterval(crossfadeFadeInterval);
+      crossfadeFadeInterval = null;
+
+      try {
+        outgoing.pause();
+        outgoing.src = '';
+        outgoing.volume = 0;
+      } catch (e) {}
+
+      incoming.volume = masterVolume;
+      isCrossfading = false;
+      isPlaying = true;
+      updatePlayPauseUI();
+    }
+  }, intervalMs);
 }
 
 function togglePlayPause() {
   if (!currentPlayingTrack && currentPlaylist.length > 0) {
-    playTrack(0);
+    playTrack(0, false);
     return;
   }
   if (!currentPlayingTrack) return;
 
-  if (audio.paused) {
-    audio.play().catch(e => console.warn(e));
+  if (activeAudio.paused) {
+    activeAudio.play().catch(e => console.warn(e));
+    if (isCrossfading && inactiveAudio.src && !inactiveAudio.paused) {
+      inactiveAudio.play().catch(() => {});
+    }
+    isPlaying = true;
   } else {
-    audio.pause();
+    activeAudio.pause();
+    if (isCrossfading && inactiveAudio.src) {
+      inactiveAudio.pause();
+    }
+    isPlaying = false;
   }
+  updatePlayPauseUI();
 }
 
-function playNext() {
+function playNext(withCrossfade = false) {
   if (currentPlaylist.length === 0) return;
   if (currentTrackIndex !== -1) {
     playbackHistory.push(currentTrackIndex);
@@ -1201,10 +1392,10 @@ function playNext() {
       nextIdx = Math.floor(Math.random() * currentPlaylist.length);
       attempts++;
     } while (nextIdx === currentTrackIndex && attempts < 10);
-    playTrack(nextIdx);
+    playTrack(nextIdx, withCrossfade);
   } else {
     const nextIdx = (currentTrackIndex + 1) % currentPlaylist.length;
-    playTrack(nextIdx);
+    playTrack(nextIdx, withCrossfade);
   }
 }
 
@@ -1213,12 +1404,12 @@ function playPrev() {
   if (playbackHistory.length > 0) {
     const prevIdx = playbackHistory.pop();
     if (prevIdx >= 0 && prevIdx < currentPlaylist.length) {
-      playTrack(prevIdx);
+      playTrack(prevIdx, false);
       return;
     }
   }
   const prevIdx = (currentTrackIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
-  playTrack(prevIdx);
+  playTrack(prevIdx, false);
 }
 
 function toggleShuffle() {
@@ -1499,6 +1690,18 @@ function applySettingsFormValues() {
 
   // Gemini API Key
   geminiApiKeyInput.value = appData.geminiApiKey || '';
+
+  // Crossfade (0s, 2s, 3s, 5s, 8s)
+  const crossfadeChips = document.querySelectorAll('.crossfade-chip');
+  const crossfadeStatusBadge = document.getElementById('crossfadeStatusBadge');
+  const cfSecs = (appData.crossfade !== undefined) ? appData.crossfade : 3;
+  crossfadeChips.forEach(c => {
+    c.classList.toggle('active', parseInt(c.dataset.secs, 10) === cfSecs);
+  });
+  if (crossfadeStatusBadge) {
+    crossfadeStatusBadge.textContent = cfSecs === 0 ? 'Выкл' : `${cfSecs} сек`;
+    crossfadeStatusBadge.classList.toggle('active', cfSecs > 0);
+  }
 }
 
 function syncSourceSelectors() {

@@ -1941,7 +1941,15 @@ body {
   flex-wrap: wrap;
 }
 
-.power-preset-chip, .proc-preset-chip, .thresh-chip, .cond-chip {
+.crossfade-presets-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.crossfade-chip, .power-preset-chip, .proc-preset-chip, .thresh-chip, .cond-chip {
   font-family: inherit;
   font-size: 10.5px;
   font-weight: 600;
@@ -1954,12 +1962,12 @@ body {
   transition: all 0.12s ease;
 }
 
-.power-preset-chip:hover, .proc-preset-chip:hover, .thresh-chip:hover, .cond-chip:hover {
+.crossfade-chip:hover, .power-preset-chip:hover, .proc-preset-chip:hover, .thresh-chip:hover, .cond-chip:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-.power-preset-chip.active, .proc-preset-chip.active, .thresh-chip.active, .cond-chip.active {
+.crossfade-chip.active, .power-preset-chip.active, .proc-preset-chip.active, .thresh-chip.active, .cond-chip.active {
   background: var(--pill-bg);
   border-color: var(--primary);
   color: var(--accent);

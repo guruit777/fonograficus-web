@@ -1543,21 +1543,46 @@ function isTrackInFavorites(track) {
   return appData.favorites.some(f => f.streamUrl === track.streamUrl || (f.id && f.id === track.id));
 }
 
-function toggleFavorite(track) {
+async function toggleFavorite(track) {
   if (!appData.favorites) appData.favorites = [];
   const idx = appData.favorites.findIndex(f => f.streamUrl === track.streamUrl || (f.id && f.id === track.id));
 
-  if (idx !== -1) {
-    appData.favorites.splice(idx, 1);
-    showToast('Удалено из Избранного');
-  } else {
+  const isAdding = idx === -1;
+  let savedTrack;
+
+  if (isAdding) {
     appData.favorites.unshift(track);
     showToast('❤️ Добавлено в Избранное');
+    savedTrack = track;
+  } else {
+    savedTrack = appData.favorites[idx];
+    appData.favorites.splice(idx, 1);
+    showToast('Удалено из Избранного');
   }
 
   saveAppData();
   updateFavCount();
   updateFavIconStatus();
+
+  // Cloud Sync
+  if (window.currentUser && window.dbClient) {
+    try {
+      if (isAdding) {
+        await window.dbClient.from('favorites').insert({
+          user_id: window.currentUser.id,
+          track_json: savedTrack,
+          stream_url: savedTrack.streamUrl
+        });
+      } else {
+        await window.dbClient.from('favorites')
+          .delete()
+          .eq('user_id', window.currentUser.id)
+          .eq('stream_url', savedTrack.streamUrl);
+      }
+    } catch (e) {
+      console.error('Failed to sync favorite to cloud', e);
+    }
+  }
 }
 
 function toggleCurrentTrackFav() {
@@ -1966,6 +1991,33 @@ async function generateAiMoodPlaylist() {
         vibeQueriesPills.appendChild(pill);
       });
       vibeDetectedCard.style.display = 'flex';
+      const saveBtn = document.getElementById('btnSaveCloudPlaylist');
+      if (saveBtn) {
+        if (window.currentUser) {
+          saveBtn.style.display = 'inline-flex';
+          saveBtn.textContent = `Сохранить в облако (осталось ${Math.max(0, 10 - (window.userCloudPlaylists?.length || 0))})`;
+          saveBtn.onclick = async () => {
+            if ((window.userCloudPlaylists?.length || 0) >= 10) {
+              showToast('Лимит 10 плейлистов исчерпан. Удалите старые.');
+              return;
+            }
+            if (window.dbClient) {
+              saveBtn.textContent = 'Сохранение...';
+              saveBtn.disabled = true;
+              await window.dbClient.from('user_playlists').insert({
+                user_id: window.currentUser.id,
+                name: vibeRes.vibeTitle || 'ИИ-Сет',
+                tracks_json: currentBuiltPlaylist
+              });
+              saveBtn.style.display = 'none';
+              showToast('Плейлист сохранен в облако!');
+              window.syncCloudData();
+            }
+          };
+        } else {
+          saveBtn.style.display = 'none';
+        }
+      }
     }
 
     if (playlistIndicatorText) {
@@ -2370,16 +2422,102 @@ function showPowerWarningBanner(data) {
   const userEmailDisplay = document.getElementById('userEmailDisplay');
   const btnLogout = document.getElementById('btnLogout');
 
+  window.syncCloudData = async function() {
+    if (!window.currentUser || !window.dbClient) return;
+    
+    // Sync Favorites
+    const { data: favs } = await window.dbClient
+      .from('favorites')
+      .select('track_json')
+      .order('created_at', { ascending: false });
+      
+    if (favs) {
+      appData.favorites = favs.map(f => f.track_json);
+      saveAppData();
+      updateFavCount();
+      updateFavIconStatus();
+      if (currentTab === 'favorites') renderFavoritesList();
+    }
+    
+    // Sync Playlists
+    const { data: pls } = await window.dbClient
+      .from('user_playlists')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    const section = document.getElementById('cloudPlaylistsSection');
+    const list = document.getElementById('cloudPlaylistsList');
+    const countSpan = document.getElementById('cloudPlaylistsLeft');
+    
+    if (pls && pls.length > 0) {
+      window.userCloudPlaylists = pls;
+      if (section) section.style.display = 'block';
+      if (countSpan) countSpan.textContent = Math.max(0, 10 - pls.length);
+      
+      if (list) {
+        list.innerHTML = pls.map(p => `
+          <div style="background: var(--surface-light); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid var(--border-color);" onclick="loadCloudPlaylist('${p.id}')">
+            <div>
+              <div style="font-weight: 500; font-size: 14px;">${p.name}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${p.tracks_json.length} треков</div>
+            </div>
+            <button onclick="event.stopPropagation(); deleteCloudPlaylist('${p.id}')" style="background: none; border: none; color: #ff5555; cursor: pointer; padding: 5px;">✕</button>
+          </div>
+        `).join('');
+      }
+    } else {
+      window.userCloudPlaylists = [];
+      if (section) section.style.display = 'none';
+      if (countSpan) countSpan.textContent = '10';
+      if (list) list.innerHTML = '';
+    }
+  };
+
+  window.loadCloudPlaylist = function(id) {
+    const pl = window.userCloudPlaylists?.find(p => p.id === id);
+    if (!pl) return;
+    currentPlaylist = pl.tracks_json;
+    document.getElementById('vibeTitleText').textContent = pl.name;
+    document.getElementById('vibeDescText').textContent = 'Загружено из облака';
+    document.getElementById('vibeDetectedCard').style.display = 'block';
+    const saveBtn = document.getElementById('btnSaveCloudPlaylist');
+    if (saveBtn) saveBtn.style.display = 'none'; // already saved
+    renderTracks();
+    if (currentPlaylist.length > 0) {
+      playTrack(0);
+    }
+  };
+  
+  window.deleteCloudPlaylist = async function(id) {
+    if (!window.currentUser || !window.dbClient) return;
+    if (confirm('Удалить этот плейлист?')) {
+      await window.dbClient.from('user_playlists').delete().eq('id', id);
+      window.syncCloudData();
+    }
+  };
+  
+  window.clearCloudData = function() {
+    appData.favorites = [];
+    saveAppData();
+    updateFavCount();
+    updateFavIconStatus();
+    if (currentTab === 'favorites') renderFavoritesList();
+  };
+
   function updateAuthUI(session) {
     if (session && session.user) {
+      window.currentUser = session.user;
       authView.style.display = 'none';
       loggedInView.style.display = 'block';
       userEmailDisplay.textContent = session.user.email;
       if (window.showToast) window.showToast('Успешный вход: ' + session.user.email);
+      if (window.syncCloudData) window.syncCloudData();
     } else {
+      window.currentUser = null;
       authView.style.display = 'block';
       loggedInView.style.display = 'none';
       userEmailDisplay.textContent = '';
+      if (window.clearCloudData) window.clearCloudData();
     }
   }
 

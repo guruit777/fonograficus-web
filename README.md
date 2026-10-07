@@ -34,3 +34,8 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## AI agents
+- Rules and project protocol: read [AGENTS.md](file:///E:/AI_BASE_DEPLOY/fonograficus-web/AGENTS.md).
+- Current status, active tasks and focus: see [PROJECT_STATE.md](file:///E:/AI_BASE_DEPLOY/fonograficus-web/PROJECT_STATE.md).
+

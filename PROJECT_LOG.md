@@ -22,6 +22,16 @@
   - Устранена проблема `&nbsp;` и `&ndash;` в `src/app/api/search/route.js` и `public/renderer.js` через функцию `cleanHtmlEntities` / `decodeHtmlEntities`.
   - Обновлён `MediaSession API`: теперь в CarPlay передаётся реальная обложка трека (`track.avatar`), а при её отсутствии — высококачественный логотип Диско-Винила.
 - Files: public/icon.png, public/apple-touch-icon.png, public/index.html, public/manifest.json, public/renderer.js, src/app/api/search/route.js.
-- Checks: `npm run build` — passed.
+- Result: DONE
+
+## 2026-10-07 12:45 -04:00 — Antigravity — Фаза 2: Таймкоды треков, Always on Top, Web Audio визуализатор
+- Task: Добавление живого отображения времени треков (elapsed/total), закрепление окна (Always on Top) и реактивный Web Audio визуализатор.
+- Done:
+  - Добавлена плашка времени `.time-display-pill` (`01:23 / 05:40` и `🔴 ЭФИР` для радио) в `fonograficus-web` и `FONOGRAFICUS`.
+  - В десктопное приложение внедрена кнопка-булавка 📌 «Поверх всех окон» (`toggle-always-on-top`) в основном окне и в мини-баре.
+  - Подключен Web Audio API `AudioContext` + `AnalyserNode` для анализа частот: полосы в мини-баре и свечение обложки теперь физически реагируют на реальный бас и ритм.
+  - В `fonograficus-web` изменения закоммичены и отправлены в GitHub (`master`), автодеплой Vercel запущен.
+- Files: fonograficus-web (index.html, styles.css, renderer.js), FONOGRAFICUS (main.js, preload.js, index.html, styles.css, renderer.js).
+- Checks: `npm run build` (Next.js) — passed; `node -c` (Electron) — passed.
 - Result: DONE
 

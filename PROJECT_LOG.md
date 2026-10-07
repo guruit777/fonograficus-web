@@ -51,3 +51,14 @@
 - Next: T-001 (Подключение базы данных Supabase для учетных записей и синхронизации избранного).
 
 
+
+## 2026-10-07 14:50 -04:00 - Antigravity - UI Polish (Disco-Vinyl Logo & CarPlay Metadata Fix)
+- Task: Apply newly generated AI logo (Disco-Vinyl) to Web and Electron apps, and fix HTML entity decoding (e.g. &nbsp;, &ndash;) displaying raw on Apple CarPlay.
+- Done:
+  - Converted new disco-vinyl JPG logo to PNG via PowerShell System.Drawing.
+  - Overwrote \public/icon.png\, \public/apple-touch-icon.png\ in PWA, and \icon.png\, \icon.ico\ in Electron.
+  - Refactored \cleanHtmlEntities\ in both \enderer.js\ to use a perfect DOM-based decoding method (\	extarea.innerHTML\) instead of regex.
+  - Deployed to Vercel production.
+- Files: public/icon.png, public/apple-touch-icon.png, public/renderer.js, FONOGRAFICUS/icon.png, FONOGRAFICUS/icon.ico, FONOGRAFICUS/renderer.js.
+- Result: DONE
+- Next: T-001 (User Accounts via Supabase).

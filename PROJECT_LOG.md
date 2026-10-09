@@ -71,3 +71,24 @@
   - Added authentication handlers to \enderer.js\ (signIn, signUp, signOut, session listener).
 - Next: T-003 (Cloud Sync for Favorites) once auth is tested by user.
 - Result: DONE
+
+## 2026-10-07 18:00 -04:00 - Antigravity - Cloud Sync (T-003)
+- Task: Implement Cloud Sync for Favorites and Playlists.
+- Done:
+  - Added user_playlists table to DB schema.
+  - Wrote sync logic in \enderer.js\ to load/save favorites and playlists using Supabase JS client.
+  - Added 'Save to Cloud' button to AI Playlist generator output.
+  - Updated HTML to display saved playlists.
+- Result: DONE. Pushed to Vercel.
+
+## 2026-10-09 11:15 -04:00 - Antigravity - Mobile Player Dock & Precision Scrubber
+- Task: Redesign mobile player bar (~10-12% screen height) with prominent touch-friendly controls, interactive seeking, and instant track scrubbing.
+- Done:
+  - Re-architected #nowPlayingBar in public/index.html into a dual-tier responsive dock (dedicated top scrubber row + controls/metadata row).
+  - Built multi-input scrubber engine in public/renderer.js supporting Pointer Events, iOS Safari Touch Events, and mouse interactions with pointer capture and drag-to-seek visual updates.
+  - Added synthetic click deduplication to prevent double seeking on touch devices.
+  - Enhanced mobile styling in public/styles.css with 28px touch hit-area, thumb handle, safe-area-inset padding, and larger buttons.
+  - Added secret exclusions (client_secret*.json, init-db.js) to .gitignore.
+  - Verified production build (npm run build).
+- Files: public/index.html, public/renderer.js, public/styles.css, .gitignore, PROJECT_LOG.md.
+- Result: DONE. Ready for production push and deploy.

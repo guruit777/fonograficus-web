@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# secrets & auth
+client_secret*.json
+*.apps.googleusercontent.com.json
+init-db.js
+*.sql

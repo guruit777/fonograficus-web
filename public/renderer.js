@@ -1,5 +1,5 @@
-
-window.api = {
+if (!window.api) {
+  window.api = {
   loadAppData: async () => JSON.parse(localStorage.getItem('fng_data') || 'null'),
   saveAppData: async (data) => localStorage.setItem('fng_data', JSON.stringify(data)),
   searchMusic: async (params) => {
@@ -103,7 +103,8 @@ window.api = {
   onVoiceMemoHotkey: () => {},
   onPowerTimerTick: () => {},
   onPowerTimerWarning: () => {}
-};
+  };
+}
 // ==========================================
 // FONOGRAFICUS — RENDERER APPLICATION CONTROLLER
 // ==========================================
@@ -242,6 +243,52 @@ const geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
 const btnSaveApiKey = document.getElementById('btnSaveApiKey');
 const activeHotkeyBadge = document.getElementById('activeHotkeyBadge');
 const hotkeyBadgeHint = document.getElementById('hotkeyBadgeHint');
+
+// Developer Mode & Opaque Elements
+const btnDevHeader = document.getElementById('btnDevHeader');
+const btnOpenDevLogsFromSettings = document.getElementById('btnOpenDevLogsFromSettings');
+const btnOpenChromeDevTools = document.getElementById('btnOpenChromeDevTools');
+const btnOpenDevToolsDirect = document.getElementById('btnOpenDevToolsDirect');
+const btnClearDevLogs = document.getElementById('btnClearDevLogs');
+const btnCloseDevLogs = document.getElementById('btnCloseDevLogs');
+const devLogDrawer = document.getElementById('devLogDrawer');
+const devLogBody = document.getElementById('devLogBody');
+const devAudioStateBadge = document.getElementById('devAudioStateBadge');
+const btnToggleOpaqueMode = document.getElementById('btnToggleOpaqueMode');
+
+// Developer Logging System
+function appendAppLog(message, type = 'info') {
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+  if (devLogBody) {
+    const div = document.createElement('div');
+    div.className = `dev-log-entry ${type}`;
+    div.innerHTML = `<span class="dev-log-time">[${timeStr}]</span> ${escapeHtml(String(message))}`;
+    devLogBody.appendChild(div);
+    devLogBody.scrollTop = devLogBody.scrollHeight;
+  }
+}
+
+function toggleDevLogDrawer(show) {
+  if (!devLogDrawer) return;
+  const isCurrentlyShown = devLogDrawer.style.display !== 'none';
+  const targetShow = show !== undefined ? show : !isCurrentlyShown;
+  devLogDrawer.style.display = targetShow ? 'flex' : 'none';
+  if (targetShow && devLogBody) {
+    devLogBody.scrollTop = devLogBody.scrollHeight;
+  }
+}
+
+function applyOpaqueMode(isOpaque) {
+  appData.isOpaque = !!isOpaque;
+  document.body.classList.toggle('mode-opaque', appData.isOpaque);
+  if (btnToggleOpaqueMode) {
+    btnToggleOpaqueMode.innerHTML = appData.isOpaque 
+      ? '🟢 Сплошной фон (Включён)' 
+      : '⬛ Без прозрачности (100% сплошной фон)';
+    btnToggleOpaqueMode.style.borderColor = appData.isOpaque ? '#4ade80' : '#38bdf8';
+  }
+}
 
 // Player Elements (Normal)
 const btnMinimize = document.getElementById('btnMinimize');
@@ -455,27 +502,44 @@ function setupEventListeners() {
   // Dynamic Progress bar & stream tracking
   const playerProgressBar = document.getElementById('playerProgressBar');
   const playerProgressTrack = document.getElementById('playerProgressTrack');
+  const playerProgressThumb = document.getElementById('playerProgressThumb');
   const playerTimeDisplay = document.getElementById('playerTimeDisplay');
   const playerCurrentTime = document.getElementById('playerCurrentTime');
   const playerTotalTime = document.getElementById('playerTotalTime');
 
   function setupDeckEvents(deck) {
+    const deckName = deck === audioPlayerA ? 'Deck A' : 'Deck B';
+
     deck.addEventListener('timeupdate', () => {
       if (deck !== activeAudio) return;
 
+      // Fail-safe: if active deck volume is 0 while playing, restore master volume immediately
+      if (!isCrossfading && deck.volume === 0 && masterVolume > 0) {
+        deck.volume = masterVolume;
+        deck.muted = false;
+        appendAppLog(`⚠️ [${deckName}] Восстановлена громкость: ${(masterVolume * 100).toFixed(0)}%`, 'warn');
+      }
+
       const hasDuration = deck.duration && !isNaN(deck.duration) && isFinite(deck.duration);
       if (hasDuration) {
-        if (playerProgressBar) {
-          playerProgressBar.classList.remove('is-live');
+        if (!isScrubbing) {
           const pct = (deck.currentTime / deck.duration) * 100;
-          playerProgressBar.style.width = pct + '%';
+          if (playerProgressBar) {
+            playerProgressBar.classList.remove('is-live');
+            playerProgressBar.style.width = pct + '%';
+          }
+          if (playerProgressThumb) {
+            playerProgressThumb.style.display = 'block';
+            playerProgressThumb.style.left = pct + '%';
+          }
+          if (playerCurrentTime) playerCurrentTime.textContent = formatTime(deck.currentTime);
+          if (playerTotalTime) {
+            playerTotalTime.style.display = 'inline';
+            playerTotalTime.textContent = formatTime(deck.duration);
+            playerTotalTime.classList.remove('is-live-badge');
+          }
         }
         if (playerTimeDisplay) playerTimeDisplay.classList.remove('is-live');
-        if (playerCurrentTime) playerCurrentTime.textContent = formatTime(deck.currentTime);
-        if (playerTotalTime) {
-          playerTotalTime.style.display = 'inline';
-          playerTotalTime.textContent = formatTime(deck.duration);
-        }
         const divider = playerTimeDisplay?.querySelector('.time-divider');
         if (divider) divider.style.display = 'inline';
 
@@ -491,7 +555,8 @@ function setupEventListeners() {
         if (!isCrossfading && cfSecs > 0 && !isLive && deck.duration > (cfSecs * 2)) {
           const remaining = deck.duration - deck.currentTime;
           if (remaining <= cfSecs && remaining > 0.4) {
-            console.log(`[Crossfade] Web auto transition initiated (${cfSecs}s fade, ${remaining.toFixed(1)}s left)`);
+            isCrossfading = true; // Guard to prevent repeated calls on next timeupdate ticks
+            appendAppLog(`🎚️ [${deckName}] Авто-кроссфейд переход (осталось ${remaining.toFixed(1)}с)`, 'info');
             playNext(true);
           }
         }
@@ -499,15 +564,37 @@ function setupEventListeners() {
         if (playerProgressBar && !playerProgressBar.classList.contains('is-live')) {
           playerProgressBar.classList.add('is-live');
         }
+        if (playerProgressThumb) playerProgressThumb.style.display = 'none';
         if (playerTimeDisplay) playerTimeDisplay.classList.add('is-live');
-        if (playerCurrentTime) playerCurrentTime.textContent = '🔴 ЭФИР';
-        if (playerTotalTime) playerTotalTime.style.display = 'none';
+        if (playerCurrentTime) playerCurrentTime.textContent = 'ЭФИР';
+        if (playerTotalTime) {
+          playerTotalTime.style.display = 'inline';
+          playerTotalTime.textContent = '🔴 LIVE';
+          playerTotalTime.classList.add('is-live-badge');
+        }
         const divider = playerTimeDisplay?.querySelector('.time-divider');
         if (divider) divider.style.display = 'none';
       }
     });
 
+    deck.addEventListener('loadstart', () => {
+      appendAppLog(`🌐 [${deckName}] loadstart: запрос данных потока...`, 'info');
+    });
+
+    deck.addEventListener('loadedmetadata', () => {
+      appendAppLog(`📋 [${deckName}] loadedmetadata: длительность = ${deck.duration ? deck.duration.toFixed(1) + 'с' : 'поток'}`, 'info');
+    });
+
+    deck.addEventListener('canplay', () => {
+      appendAppLog(`⚡ [${deckName}] canplay (поток готов)`, 'info');
+    });
+
     deck.addEventListener('play', () => {
+      appendAppLog(`▶️ [${deckName}] play: громкость=${(deck.volume * 100).toFixed(0)}%, muted=${deck.muted}`, 'info');
+      if (devAudioStateBadge) {
+        devAudioStateBadge.textContent = `${deck === activeAudio ? (deck === audioPlayerA ? 'DECK A' : 'DECK B') : ''} PLAY ${(deck.volume * 100).toFixed(0)}%`;
+        devAudioStateBadge.style.color = '#4ade80';
+      }
       if (deck === activeAudio) {
         isPlaying = true;
         updatePlayPauseUI();
@@ -517,8 +604,27 @@ function setupEventListeners() {
       }
     });
 
+    deck.addEventListener('playing', () => {
+      appendAppLog(`🔊 [${deckName}] playing (звук декодируется, time=${deck.currentTime.toFixed(2)}с, vol=${(deck.volume * 100).toFixed(0)}%)`, 'success');
+      if (devAudioStateBadge) {
+        devAudioStateBadge.textContent = `${deck === audioPlayerA ? 'DECK A' : 'DECK B'} PLAYING ${(deck.volume * 100).toFixed(0)}%`;
+        devAudioStateBadge.style.color = '#4ade80';
+      }
+    });
+
+    deck.addEventListener('waiting', () => {
+      appendAppLog(`⏳ [${deckName}] waiting (буферизация данных...)`, 'warn');
+      if (devAudioStateBadge) { devAudioStateBadge.textContent = 'BUFFERING'; devAudioStateBadge.style.color = '#facc15'; }
+    });
+
+    deck.addEventListener('stalled', () => {
+      appendAppLog(`⚠️ [${deckName}] stalled: сеть задерживает передачу аудио`, 'warn');
+    });
+
     deck.addEventListener('pause', () => {
       if (deck === activeAudio && !isCrossfading) {
+        appendAppLog(`⏸️ [${deckName}] pause`, 'info');
+        if (devAudioStateBadge) { devAudioStateBadge.textContent = 'PAUSED'; devAudioStateBadge.style.color = '#facc15'; }
         isPlaying = false;
         updatePlayPauseUI();
         if (playerProgressBar) playerProgressBar.classList.remove('is-live');
@@ -530,13 +636,17 @@ function setupEventListeners() {
 
     deck.addEventListener('ended', () => {
       if (deck === activeAudio && !isCrossfading) {
+        appendAppLog(`⏹️ [${deckName}] ended (трек завершился)`, 'info');
         playNext(false);
       }
     });
 
     deck.addEventListener('error', (e) => {
+      const err = deck.error ? `code: ${deck.error.code}, message: ${deck.error.message || 'unknown'}` : 'unknown error';
+      appendAppLog(`❌ [${deckName}] Ошибка потока (${err})`, 'error');
+      if (devAudioStateBadge) { devAudioStateBadge.textContent = 'ERROR'; devAudioStateBadge.style.color = '#f87171'; }
       if (deck === activeAudio && !isCrossfading) {
-        console.warn('[Audio Deck Web] Stream error:', e);
+        console.warn('[Audio Deck] Stream error:', e);
         showToast('Ошибка потока, пробую следующий...');
         setTimeout(() => playNext(false), 1500);
       }
@@ -546,13 +656,106 @@ function setupEventListeners() {
   setupDeckEvents(audioPlayerA);
   setupDeckEvents(audioPlayerB);
 
+  // ==========================================
+  // HIGH-PRECISION SCRUBBER & TIMEBAR ENGINE
+  // (PointerEvents + Touch + Click for Desktop & iOS Safari)
+  // ==========================================
+  let isScrubbing = false;
+
+  function getScrubRatio(clientX) {
+    if (!playerProgressTrack) return 0;
+    const rect = playerProgressTrack.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+
+  function applyScrubVisual(ratio, timeSec) {
+    const pct = (ratio * 100).toFixed(2) + '%';
+    if (playerProgressBar) playerProgressBar.style.width = pct;
+    if (playerProgressThumb) {
+      playerProgressThumb.style.display = 'block';
+      playerProgressThumb.style.left = pct;
+    }
+    if (playerCurrentTime && timeSec !== undefined) {
+      playerCurrentTime.textContent = formatTime(timeSec);
+    }
+  }
+
+  let lastSeekTimestamp = 0;
+
+  function commitSeek(ratio) {
+    if (activeAudio && activeAudio.duration && isFinite(activeAudio.duration)) {
+      lastSeekTimestamp = Date.now();
+      const targetTime = ratio * activeAudio.duration;
+      activeAudio.currentTime = targetTime;
+      applyScrubVisual(ratio, targetTime);
+      appendAppLog(`⏩ Перемотка на ${formatTime(targetTime)} (${(ratio * 100).toFixed(0)}%)`, 'info');
+    }
+  }
+
   if (playerProgressTrack) {
-    playerProgressTrack.addEventListener('click', (e) => {
-      if (activeAudio.duration && !isNaN(activeAudio.duration) && isFinite(activeAudio.duration)) {
-        const rect = playerProgressTrack.getBoundingClientRect();
-        const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        activeAudio.currentTime = clickRatio * activeAudio.duration;
+    // 1. POINTER EVENTS (Modern Mobile & Desktop Unified)
+    playerProgressTrack.addEventListener('pointerdown', (e) => {
+      if (!activeAudio || !activeAudio.duration || !isFinite(activeAudio.duration)) return;
+      isScrubbing = true;
+      try { playerProgressTrack.setPointerCapture(e.pointerId); } catch(err) {}
+      playerProgressTrack.classList.add('scrubbing');
+      const ratio = getScrubRatio(e.clientX);
+      applyScrubVisual(ratio, ratio * activeAudio.duration);
+    });
+
+    playerProgressTrack.addEventListener('pointermove', (e) => {
+      if (!isScrubbing) return;
+      const ratio = getScrubRatio(e.clientX);
+      applyScrubVisual(ratio, ratio * activeAudio.duration);
+    });
+
+    const finishPointerScrub = (e) => {
+      if (!isScrubbing) return;
+      isScrubbing = false;
+      playerProgressTrack.classList.remove('scrubbing');
+      try { playerProgressTrack.releasePointerCapture(e.pointerId); } catch(err) {}
+      const ratio = getScrubRatio(e.clientX);
+      commitSeek(ratio);
+    };
+
+    playerProgressTrack.addEventListener('pointerup', finishPointerScrub);
+    playerProgressTrack.addEventListener('pointercancel', finishPointerScrub);
+
+    // 2. TOUCH EVENTS (Dedicated iOS Safari / Mobile Touch Handling)
+    playerProgressTrack.addEventListener('touchstart', (e) => {
+      if (!activeAudio || !activeAudio.duration || !isFinite(activeAudio.duration)) return;
+      isScrubbing = true;
+      playerProgressTrack.classList.add('scrubbing');
+      const touch = e.touches[0];
+      const ratio = getScrubRatio(touch.clientX);
+      applyScrubVisual(ratio, ratio * activeAudio.duration);
+    }, { passive: true });
+
+    playerProgressTrack.addEventListener('touchmove', (e) => {
+      if (!isScrubbing) return;
+      const touch = e.touches[0];
+      const ratio = getScrubRatio(touch.clientX);
+      applyScrubVisual(ratio, ratio * activeAudio.duration);
+    }, { passive: true });
+
+    playerProgressTrack.addEventListener('touchend', (e) => {
+      if (!isScrubbing) return;
+      isScrubbing = false;
+      playerProgressTrack.classList.remove('scrubbing');
+      const touch = e.changedTouches[0] || e.touches[0];
+      if (touch) {
+        const ratio = getScrubRatio(touch.clientX);
+        commitSeek(ratio);
       }
+    });
+
+    // 3. CLICK FALLBACK (Prevent synthetic duplicate trigger)
+    playerProgressTrack.addEventListener('click', (e) => {
+      if (Date.now() - lastSeekTimestamp < 450) return;
+      if (!activeAudio || !activeAudio.duration || !isFinite(activeAudio.duration)) return;
+      const ratio = getScrubRatio(e.clientX);
+      commitSeek(ratio);
     });
   }
 
@@ -701,37 +904,64 @@ function setupEventListeners() {
     });
   });
 
-  // Settings: Wallpaper
-  btnUploadWallpaper.addEventListener('click', async () => {
-    const base64 = await window.api.selectWallpaper();
-    if (base64) {
-      appData.customWallpaper = base64;
+  // Settings: 3 Preset Wallpapers Selection
+  const wallpaperPresetCards = document.querySelectorAll('.wallpaper-preset-card');
+  wallpaperPresetCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const wp = card.dataset.wallpaper;
+      appData.customWallpaper = wp;
+
+      // When choosing a wallpaper, disable solid opaque mode so the glass/wallpaper is visible
+      if (appData.isOpaque) {
+        applyOpaqueMode(false);
+      }
+
       applyWallpaperSettings();
       saveAppData();
-      showToast('Обои успешно установлены!');
-    }
+      showToast(wp ? `✨ Установлены обои: ${card.querySelector('.wp-title')?.textContent || 'Обои'}` : 'Обои отключены (чистый фон)');
+    });
   });
 
-  btnClearWallpaper.addEventListener('click', () => {
-    appData.customWallpaper = '';
-    applyWallpaperSettings();
-    saveAppData();
-    showToast('Фон удалён');
-  });
+  /* Закомментировано по запросу пользователя (выбор с диска):
+  if (btnUploadWallpaper) {
+    btnUploadWallpaper.addEventListener('click', async () => {
+      const base64 = await window.api.selectWallpaper();
+      if (base64) {
+        appData.customWallpaper = base64;
+        applyWallpaperSettings();
+        saveAppData();
+        showToast('Обои успешно установлены!');
+      }
+    });
+  }
 
-  blurSlider.addEventListener('input', (e) => {
-    appData.blurWallpaper = parseInt(e.target.value, 10);
-    blurVal.textContent = `${appData.blurWallpaper}px`;
-    applyWallpaperSettings();
-    saveAppData();
-  });
+  if (btnClearWallpaper) {
+    btnClearWallpaper.addEventListener('click', () => {
+      appData.customWallpaper = '';
+      applyWallpaperSettings();
+      saveAppData();
+      showToast('Фон удалён');
+    });
+  }
+  */
 
-  opacitySlider.addEventListener('input', (e) => {
-    appData.wallpaperOpacity = parseInt(e.target.value, 10);
-    opacityVal.textContent = `${appData.wallpaperOpacity}%`;
-    applyWallpaperSettings();
-    saveAppData();
-  });
+  if (blurSlider) {
+    blurSlider.addEventListener('input', (e) => {
+      appData.blurWallpaper = parseInt(e.target.value, 10);
+      if (blurVal) blurVal.textContent = `${appData.blurWallpaper}px`;
+      applyWallpaperSettings();
+      saveAppData();
+    });
+  }
+
+  if (opacitySlider) {
+    opacitySlider.addEventListener('input', (e) => {
+      appData.wallpaperOpacity = parseInt(e.target.value, 10);
+      if (opacityVal) opacityVal.textContent = `${appData.wallpaperOpacity}%`;
+      applyWallpaperSettings();
+      saveAppData();
+    });
+  }
 
   // Settings: Crossfade Presets (0s, 2s, 3s, 5s, 8s)
   const crossfadeChips = document.querySelectorAll('.crossfade-chip');
@@ -749,6 +979,49 @@ function setupEventListeners() {
       saveAppData();
       showToast(secs === 0 ? 'Плавное сведение (Crossfade) выключено' : `Плавное сведение: ${secs} сек`);
     });
+  });
+
+  // Settings: Opaque Mode (Без прозрачности)
+  if (btnToggleOpaqueMode) {
+    btnToggleOpaqueMode.addEventListener('click', () => {
+      applyOpaqueMode(!appData.isOpaque);
+      saveAppData();
+      showToast(appData.isOpaque ? '⬛ Включён сплошной непрозрачный фон' : '✨ Включён стеклянный фон');
+    });
+  }
+
+  // Developer Mode Controls & Drawer
+  if (btnDevHeader) {
+    btnDevHeader.addEventListener('click', () => toggleDevLogDrawer());
+  }
+  if (btnOpenDevLogsFromSettings) {
+    btnOpenDevLogsFromSettings.addEventListener('click', () => toggleDevLogDrawer(true));
+  }
+  if (btnCloseDevLogs) {
+    btnCloseDevLogs.addEventListener('click', () => toggleDevLogDrawer(false));
+  }
+  if (btnClearDevLogs && devLogBody) {
+    btnClearDevLogs.addEventListener('click', () => {
+      devLogBody.innerHTML = '';
+      appendAppLog('🧹 Журнал логов очищен', 'info');
+    });
+  }
+  if (btnOpenChromeDevTools) {
+    btnOpenChromeDevTools.addEventListener('click', () => {
+      if (window.api && window.api.openDevTools) window.api.openDevTools();
+    });
+  }
+  if (btnOpenDevToolsDirect) {
+    btnOpenDevToolsDirect.addEventListener('click', () => {
+      if (window.api && window.api.openDevTools) window.api.openDevTools();
+    });
+  }
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F12') {
+      e.preventDefault();
+      if (window.api && window.api.openDevTools) window.api.openDevTools();
+      toggleDevLogDrawer();
+    }
   });
 
   // Hotkey Recorder
@@ -1270,8 +1543,23 @@ function executeDirectPlay(track) {
   } catch (e) {}
 
   activeAudio.volume = masterVolume;
+  activeAudio.muted = false;
   activeAudio.src = track.streamUrl;
-  activeAudio.play().catch(e => console.warn(e));
+
+  if (playerProgressBar) playerProgressBar.style.width = '0%';
+  if (playerProgressThumb) playerProgressThumb.style.left = '0%';
+  if (playerCurrentTime) playerCurrentTime.textContent = '0:00';
+  if (playerTotalTime) playerTotalTime.textContent = track.duration || '0:00';
+  
+  const deckName = activeAudio === audioPlayerA ? 'Deck A' : 'Deck B';
+  appendAppLog(`▶️ Воспроизведение [${deckName}]: "${track.title}" [${(track.source || 'promodj').toUpperCase()}]`, 'info');
+  appendAppLog(`🔗 URL: ${track.streamUrl}`, 'info');
+  appendAppLog(`🔊 Громкость: ${(masterVolume * 100).toFixed(0)}% (muted: ${activeAudio.muted})`, 'info');
+
+  activeAudio.play().catch(e => {
+    console.warn('[Audio Play] error:', e);
+    appendAppLog(`❌ Ошибка play(): ${e.message || e}`, 'error');
+  });
   audio = activeAudio;
 }
 
@@ -1286,20 +1574,28 @@ function executeCrossfadeTransition(track, cfSecs) {
   const incoming = inactiveAudio;
 
   // Prepare incoming deck
+  incoming.muted = false;
   incoming.src = track.streamUrl;
   incoming.volume = 0;
   incoming.currentTime = 0;
 
+  const inDeckName = incoming === audioPlayerA ? 'Deck A' : 'Deck B';
+  const outDeckName = outgoing === audioPlayerA ? 'Deck A' : 'Deck B';
+  appendAppLog(`🎚️ Crossfade сведение (${cfSecs}с): [${outDeckName} ➔ ${inDeckName}] "${track.title}"`, 'info');
+  appendAppLog(`🔗 Incoming URL: ${track.streamUrl}`, 'info');
+
   const playPromise = incoming.play();
   if (playPromise !== undefined) {
     playPromise.catch(e => {
-      console.warn('[Crossfade Web] Failed to play incoming deck, falling back:', e);
+      console.warn('[Crossfade] Failed to play incoming deck, falling back:', e);
+      appendAppLog(`⚠️ Crossfade ошибка старта: ${e.message || e}`, 'warn');
       if (crossfadeFadeInterval) {
         clearInterval(crossfadeFadeInterval);
         crossfadeFadeInterval = null;
       }
       isCrossfading = false;
       outgoing.volume = masterVolume;
+      outgoing.muted = false;
       activeAudio = outgoing;
       inactiveAudio = incoming;
       audio = activeAudio;
@@ -1338,9 +1634,11 @@ function executeCrossfadeTransition(track, cfSecs) {
       } catch (e) {}
 
       incoming.volume = masterVolume;
+      incoming.muted = false;
       isCrossfading = false;
       isPlaying = true;
       updatePlayPauseUI();
+      appendAppLog(`✅ Crossfade завершён: активен [${inDeckName}], громкость 100%`, 'success');
     }
   }, intervalMs);
 }
@@ -1667,18 +1965,25 @@ function logTrackHistory(track) {
 function applyTheme(themeClass) {
   document.body.className = '';
   document.body.classList.add(themeClass);
+  if (appData.isOpaque) {
+    document.body.classList.add('mode-opaque');
+  }
 }
 
 function applyWallpaperSettings() {
   if (appData.customWallpaper) {
     wallpaperBackdrop.style.backgroundImage = `url(${appData.customWallpaper})`;
-    wallpaperBackdrop.style.filter = `blur(${appData.blurWallpaper || 15}px)`;
-    wallpaperBackdrop.style.opacity = (appData.wallpaperOpacity || 25) / 100;
-    btnClearWallpaper.style.display = 'block';
+    wallpaperBackdrop.style.filter = `blur(${appData.blurWallpaper !== undefined ? appData.blurWallpaper : 15}px)`;
+    wallpaperBackdrop.style.opacity = (appData.wallpaperOpacity !== undefined ? appData.wallpaperOpacity : 35) / 100;
   } else {
     wallpaperBackdrop.style.backgroundImage = 'none';
-    btnClearWallpaper.style.display = 'none';
   }
+
+  // Sync active badge in wallpaper cards
+  document.querySelectorAll('.wallpaper-preset-card').forEach(card => {
+    const wp = card.dataset.wallpaper;
+    card.classList.toggle('active', wp === (appData.customWallpaper || ''));
+  });
 }
 
 function applySettingsFormValues() {
@@ -1690,11 +1995,26 @@ function applySettingsFormValues() {
     c.classList.toggle('active', c.dataset.theme === appData.theme);
   });
 
+  // Default to first neon wallpaper if unset
+  if (!appData.customWallpaper) {
+    appData.customWallpaper = 'wallpapers/ocean_neon.jpg';
+  }
+
   // Wallpaper sliders
-  blurSlider.value = appData.blurWallpaper || 15;
-  blurVal.textContent = `${blurSlider.value}px`;
-  opacitySlider.value = appData.wallpaperOpacity || 25;
-  opacityVal.textContent = `${opacitySlider.value}%`;
+  if (blurSlider) {
+    blurSlider.value = appData.blurWallpaper !== undefined ? appData.blurWallpaper : 15;
+    if (blurVal) blurVal.textContent = `${blurSlider.value}px`;
+  }
+  if (opacitySlider) {
+    opacitySlider.value = appData.wallpaperOpacity !== undefined ? appData.wallpaperOpacity : 35;
+    if (opacityVal) opacityVal.textContent = `${opacitySlider.value}%`;
+  }
+
+  applyWallpaperSettings();
+
+  // Opaque Mode (Turn off opaque by default so user sees the rich aesthetic wallpaper)
+  appData.isOpaque = false;
+  applyOpaqueMode(false);
 
   // Hotkeys
   if (appData.hotkeys) {

@@ -35,9 +35,10 @@
         <img src="/icon.png" alt="Logo" class="app-logo-img">
         <span class="logo-title">FONOGRAFICUS</span>
         <span id="sourceBadge" class="badge-source">PromoDJ</span>
+        <button id="btnDevHeader" class="dev-toggle-pill" type="button" title="Режим разработчика: логи и консоль (F12)">🛠 DEV</button>
       </div>
-      <div class="window-actions no-drag" style="display: none;">
-        <button id="btnQuickSleepTimer" class="icon-btn sleep-timer-btn" style="display: none;" title="Таймер сна и Watchdog ПК (Сон / Выключение)">
+      <div class="window-actions no-drag">
+        <button id="btnQuickSleepTimer" class="icon-btn sleep-timer-btn" title="Таймер сна и Watchdog ПК (Сон / Выключение)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <span id="quickSleepBadge" class="timer-mini-badge" style="display: none;">30м</span>
         </button>
@@ -520,21 +521,58 @@
           </div>
         </div>
 
-        <!-- 3. Custom Wallpaper -->
+        <!-- 3. Custom Wallpaper Presets -->
         <div class="settings-card">
-          <h4>Пользовательские обои</h4>
-          <p class="setting-desc">Загрузите любое фоновое изображение для плеера</p>
+          <h4>Атмосферные обои & Фон</h4>
+          <p class="setting-desc">Выберите визуальную атмосферу для стеклянного плеера</p>
+
+          <!-- Коллекция 3 дизайнерских обоев -->
+          <div class="wallpaper-presets-grid">
+            <div class="wallpaper-preset-card active" data-wallpaper="wallpapers/ocean_neon.jpg" style="background-image: url('wallpapers/ocean_neon.jpg');">
+              <div class="wallpaper-preset-overlay">
+                <span class="wp-title">🌊 Неоновый Океан</span>
+                <span class="wp-tag">Циан & Полночь</span>
+              </div>
+            </div>
+            <div class="wallpaper-preset-card" data-wallpaper="wallpapers/sunset_amber.jpg" style="background-image: url('wallpapers/sunset_amber.jpg');">
+              <div class="wallpaper-preset-overlay">
+                <span class="wp-title">🌅 Тёплый Закат</span>
+                <span class="wp-tag">Янтарь & Маджента</span>
+              </div>
+            </div>
+            <div class="wallpaper-preset-card" data-wallpaper="wallpapers/aurora_emerald.jpg" style="background-image: url('wallpapers/aurora_emerald.jpg');">
+              <div class="wallpaper-preset-overlay">
+                <span class="wp-title">🌲 Изумрудное Сияние</span>
+                <span class="wp-tag">Нефрит & Звёзды</span>
+              </div>
+            </div>
+            <div class="wallpaper-preset-card wp-none" data-wallpaper="" style="background: rgba(15, 23, 42, 0.85);">
+              <div class="wallpaper-preset-overlay">
+                <span class="wp-title">🚫 Без обоев</span>
+                <span class="wp-tag">Чистый градиент темы</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Закомментировано по запросу пользователя: выбор картинки с диска
           <div class="wallpaper-controls">
             <button id="btnUploadWallpaper" class="action-btn">Выбрать картинку с диска...</button>
             <button id="btnClearWallpaper" class="action-btn danger-btn" style="display: none;">Удалить фон</button>
           </div>
+          -->
+
           <div class="range-field">
             <label>Размытие фона (Blur): <span id="blurVal">15px</span></label>
             <input type="range" id="blurSlider" min="0" max="40" value="15">
           </div>
           <div class="range-field">
-            <label>Прозрачность фона: <span id="opacityVal">25%</span></label>
-            <input type="range" id="opacitySlider" min="5" max="90" value="25">
+            <label>Прозрачность фона: <span id="opacityVal">35%</span></label>
+            <input type="range" id="opacitySlider" min="5" max="90" value="35">
+          </div>
+          <div class="wallpaper-controls" style="margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
+            <button type="button" id="btnToggleOpaqueMode" class="action-btn" style="width: 100%; justify-content: center; background: #0f172a; color: #38bdf8; border: 1px solid #38bdf8; font-weight: 700; cursor: pointer;">
+              ⬛ Без прозрачности (100% сплошной фон)
+            </button>
           </div>
         </div>
 
@@ -738,6 +776,24 @@
             <button id="btnSaveApiKey" class="action-btn">Сохранить</button>
           </div>
         </div>
+
+        <!-- 7. Developer Mode & Logs -->
+        <div class="settings-card">
+          <div class="card-header-flex">
+            <div>
+              <h4>🛠 Режим разработчика & Логи</h4>
+              <p class="setting-desc">Живой журнал аудио-потоков, кодеков, громкости и системных ошибок</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="btnOpenDevLogsFromSettings" class="action-btn" style="background: #0284c7; color: #fff; font-weight: 700;">
+                📋 Живые логи
+              </button>
+              <button type="button" id="btnOpenDevToolsDirect" class="action-btn text-only" style="color: #38bdf8;">
+                DevTools (F12)
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -755,67 +811,75 @@
 
     <!-- Active Player Bar (Bottom) -->
     <div class="now-playing-bar" id="nowPlayingBar">
-      <!-- Top Dynamic Progress & Stream Bar -->
-      <div class="player-progress-track" id="playerProgressTrack" title="Перемотка трека">
-        <div class="player-progress-bar" id="playerProgressBar"></div>
-      </div>
-      <!-- Track Cover & Meta -->
-      <div class="track-info">
-        <div class="cover-wrapper" id="currentCover">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-        </div>
-        <div class="meta-texts">
-          <div class="track-title-row">
-            <span id="liveBadge" class="live-pulse-badge" style="display: none;">🔴 ЭФИР</span>
-            <div class="track-title" id="currentTitle">Выберите трек</div>
+      <!-- 1. Dedicated Interactive Time Scrubber Row -->
+      <div class="player-scrubber-row" id="playerScrubberRow">
+        <span class="scrubber-time" id="playerCurrentTime">0:00</span>
+        <div class="player-progress-track" id="playerProgressTrack" role="slider" aria-label="Перемотка" tabindex="0">
+          <div class="scrubber-rail">
+            <div class="player-progress-bar" id="playerProgressBar"></div>
+            <div class="player-progress-thumb" id="playerProgressThumb"></div>
           </div>
-          <div class="track-artist" id="currentArtist">PromoDJ Stream</div>
         </div>
-        <!-- Quick Action Buttons for Current Track -->
-        <button type="button" id="btnSearchLiveTrack" class="meta-action-btn live-action-btn" title="Найти этот играющий трек в поиске (PromoDJ / Зайцев / Каталог)" style="display: none;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        </button>
-        <button type="button" id="btnCopyLiveTrack" class="meta-action-btn live-action-btn" title="Скопировать название играющего трека" style="display: none;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-        </button>
-        <button id="btnCurrentFav" class="meta-action-btn" title="В избранное">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        </button>
-        <button id="btnCurrentDownload" class="meta-action-btn" title="Скачать MP3 на компьютер">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
+        <span class="scrubber-time" id="playerTotalTime">0:00</span>
       </div>
 
-      <!-- Central Controls -->
-      <div class="playback-controls">
-        <button id="btnShuffle" class="ctrl-btn" title="Перемешать треки (Случайный порядок)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-        </button>
-
-        <button id="btnPrev" class="ctrl-btn" title="Предыдущий">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16zM5 19V5h2v14H5z"/></svg>
-        </button>
-
-        <button id="btnMainPlay" class="play-btn main-play-btn" title="Пауза / Плей">
-          <svg id="playIconMain" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <svg id="pauseIconMain" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-        </button>
-
-        <button id="btnNext" class="ctrl-btn" title="Следующий">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4zm14 1v14h-2V5h2z"/></svg>
-        </button>
-      </div>
-
-      <!-- Volume & Time / Hotkey Hint -->
-      <div class="extra-controls">
-        <div class="time-display-pill" id="playerTimeDisplay" title="Текущее время / Длительность">
-          <span id="playerCurrentTime">0:00</span><span class="time-divider">/</span><span id="playerTotalTime">0:00</span>
+      <!-- 2. Main Controls & Track Info Row -->
+      <div class="player-main-row">
+        <!-- Track Cover & Meta -->
+        <div class="track-info">
+          <div class="cover-wrapper" id="currentCover">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <div class="meta-texts">
+            <div class="track-title-row">
+              <span id="liveBadge" class="live-pulse-badge" style="display: none;">🔴 ЭФИР</span>
+              <div class="track-title" id="currentTitle">Выберите трек</div>
+            </div>
+            <div class="track-artist" id="currentArtist">FONOGRAFICUS</div>
+          </div>
+          <!-- Quick Action Buttons for Current Track -->
+          <button type="button" id="btnSearchLiveTrack" class="meta-action-btn live-action-btn" title="Найти в каталоге" style="display: none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+          <button type="button" id="btnCopyLiveTrack" class="meta-action-btn live-action-btn" title="Скопировать название" style="display: none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          </button>
+          <button id="btnCurrentFav" class="meta-action-btn" title="В избранное">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </button>
+          <button id="btnCurrentDownload" class="meta-action-btn" title="Скачать MP3">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
         </div>
-        <div class="hotkey-pill" id="hotkeyBadgeHint" title="Нажмите для смены горячей клавиши">
-          <span class="hotkey-kbd" id="activeHotkeyBadge">F9</span>
-          <span class="hotkey-label">Mute/Talk</span>
+
+        <!-- Central Playback Controls -->
+        <div class="playback-controls">
+          <button id="btnShuffle" class="ctrl-btn" title="Перемешать треки (Случайный порядок)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+          </button>
+
+          <button id="btnPrev" class="ctrl-btn" title="Предыдущий">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16zM5 19V5h2v14H5z"/></svg>
+          </button>
+
+          <button id="btnMainPlay" class="play-btn main-play-btn" title="Пауза / Плей">
+            <svg id="playIconMain" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <svg id="pauseIconMain" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+
+          <button id="btnNext" class="ctrl-btn" title="Следующий">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4zm14 1v14h-2V5h2z"/></svg>
+          </button>
         </div>
-        <input type="range" id="volumeSlider" min="0" max="1" step="0.02" value="0.85" class="volume-range">
+
+        <!-- Volume & Hotkey Hint (Desktop Only) -->
+        <div class="extra-controls">
+          <div class="hotkey-pill" id="hotkeyBadgeHint" title="Нажмите для смены горячей клавиши">
+            <span class="hotkey-kbd" id="activeHotkeyBadge">F9</span>
+            <span class="hotkey-label">Mute</span>
+          </div>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.02" value="0.85" class="volume-range">
+        </div>
       </div>
     </div>
   </div>
@@ -858,6 +922,22 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </div>
+  </div>
+
+  <!-- Live Developer Log Console Drawer -->
+  <div id="devLogDrawer" class="dev-log-drawer" style="display: none;">
+    <div class="dev-log-header">
+      <div class="dev-log-title">
+        <span>⚡ FONOGRAFICUS LIVE DEV CONSOLE</span>
+        <span id="devAudioStateBadge" style="font-size: 10px; color: #4ade80; background: rgba(74, 222, 128, 0.15); padding: 1px 6px; border-radius: 4px;">IDLE</span>
+      </div>
+      <div class="dev-log-actions">
+        <button id="btnClearDevLogs" class="dev-btn-sm" type="button">Очистить</button>
+        <button id="btnOpenChromeDevTools" class="dev-btn-sm" type="button" title="Открыть стандартный Chrome DevTools">DevTools (F12)</button>
+        <button id="btnCloseDevLogs" class="dev-btn-sm" type="button" style="color: #f87171;">✕ Закрыть</button>
+      </div>
+    </div>
+    <div id="devLogBody" class="dev-log-body"></div>
   </div>
 
   <!-- Notification Toast -->
